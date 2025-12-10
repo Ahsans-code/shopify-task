@@ -35,50 +35,47 @@ export const action = async ({ request }) => {
     const productJson = JSON.parse(formData.get("productJson"));
     const dbId = formData.get("dbId");
 
-    const optionValuesString = productJson.variants
-        .map(v => `{name: "${v.name}"}`)
-        .join(", ");
-
-    const variantsString = productJson.variants
-        .map(v => `{options: ["${v.name}"], price: "${v.price}"}`)
-        .join(", ");
-
+    const optionName = "Option";
+    console.log("product json", productJson)
     const response = await admin.graphql(
         `#graphql
-        mutation {
-            productCreate(
+    mutation CreateProduct($product: ProductCreateInput!, $media: [CreateMediaInput!]) {
+      productCreate(product: $product, media: $media) {
+         product {
+      id
+      title
+    }
+    userErrors {
+      field
+      message
+    }
+      }
+    }
+      
+    `,
+        {
+            variables: {
                 product: {
-                    title: ${JSON.stringify(productJson.title)},
-                    descriptionHtml: ${JSON.stringify(productJson.descriptionHtml)},
+                    title: productJson.title,
+                    descriptionHtml: productJson.descriptionHtml,
                     productType: "AI Generated",
-                    status: ACTIVE,
-                    tags: ${JSON.stringify(productJson.tags)},
+                    status: "ACTIVE",
+                    tags: productJson.tags,
                     productOptions: [
                         {
-                            name: "Option",
-                            values: [${optionValuesString}]
+                            name: optionName,
+                            values: productJson.variants.map((v) => ({ name: v.name }))
                         }
-                    ],
-                    variants: [${variantsString}]
+                    ]
                 },
                 media: [
                     {
-                        originalSource: "${productJson.imageUrl}",
-                        mediaContentType: IMAGE
+                        originalSource: productJson.imageUrl,
+                        mediaContentType: "IMAGE"
                     }
                 ]
-            ) {
-                product {
-                    id
-                    title
-                    onlineStorePreviewUrl
-                }
-                userErrors {
-                    field
-                    message
-                }
-            }
-        }`
+            },
+        }
     );
 
     const responseJson = await response.json();
@@ -102,6 +99,8 @@ export const action = async ({ request }) => {
 
     return redirect("/app?success=true");
 };
+
+
 
 export default function AIPreview() {
     const { productData, dbId } = useLoaderData();
